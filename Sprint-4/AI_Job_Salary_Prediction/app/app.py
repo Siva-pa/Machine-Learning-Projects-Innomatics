@@ -5,7 +5,6 @@ Streamlit frontend for Sprint 4 deployment.
 
 import os
 import sys
-import pickle
 import logging
 from pathlib import Path
 
@@ -20,7 +19,7 @@ from datetime import datetime
 ROOT = Path(__file__).resolve().parent.parent
 sys.path.insert(0, str(ROOT / "src"))
 
-from predict import load_model, predict, load_prediction_logs
+from predict import predict, load_prediction_logs
 from preprocessing import CATEGORICAL_COLS, NUMERICAL_COLS
 
 MODEL_PATH = ROOT / "models" / "model.pkl"
@@ -132,9 +131,70 @@ COUNTRIES = [
 # ── Model loader (cached) ──────────────────────────────────────────────────────
 @st.cache_resource
 def get_model():
-    if not MODEL_PATH.exists():
+    import joblib
+    from preprocessing import AIJobPreprocessor, CATEGORICAL_COLS, NUMERICAL_COLS
+    from sklearn.compose import ColumnTransformer
+    from sklearn.ensemble import GradientBoostingRegressor
+    from sklearn.pipeline import Pipeline
+    from sklearn.preprocessing import OneHotEncoder, StandardScaler
+
+    # Try loading saved model first
+    try:
+        if MODEL_PATH.exists():
+            pipeline = joblib.load(str(MODEL_PATH))
+            logger.info("Model loaded from file.")
+            return pipeline
+    except Exception as e:
+        logger.warning("Could not load saved model: %s — retraining...", e)
+
+    # Retrain from scratch if loading fails (e.g. Python version mismatch)
+    st.toast("⏳ First-time setup: training model, please wait ~1 min...")
+    DATA_PATH = ROOT / "data" / "cleaned_ai_job_dataset.csv"
+
+    if not DATA_PATH.exists():
+        st.error(f"Training data not found at {DATA_PATH}")
         return None
-    return load_model(str(MODEL_PATH))
+
+    df = pd.read_csv(DATA_PATH)
+    y = df["salary_usd"]
+    X = df.drop(columns=["salary_usd"], errors="ignore")
+
+    preprocessor = AIJobPreprocessor(
+        categorical_cols=CATEGORICAL_COLS,
+        numerical_cols=NUMERICAL_COLS,
+    )
+    column_transformer = ColumnTransformer(
+        transformers=[
+            ("cat", OneHotEncoder(handle_unknown="ignore", sparse_output=False), CATEGORICAL_COLS),
+            ("num", StandardScaler(), NUMERICAL_COLS),
+        ]
+    )
+    pipeline = Pipeline(
+        steps=[
+            ("clean", preprocessor),
+            ("encode", column_transformer),
+            ("model", GradientBoostingRegressor(
+                n_estimators=300,
+                learning_rate=0.05,
+                max_depth=5,
+                min_samples_leaf=5,
+                random_state=42,
+            )),
+        ]
+    )
+
+    pipeline.fit(X, y)
+    logger.info("Model retrained successfully.")
+
+    # Save for next time
+    try:
+        MODEL_PATH.parent.mkdir(parents=True, exist_ok=True)
+        joblib.dump(pipeline, str(MODEL_PATH))
+        logger.info("Retrained model saved to %s", MODEL_PATH)
+    except Exception as e:
+        logger.warning("Could not save retrained model: %s", e)
+
+    return pipeline
 
 
 # ── Sidebar ────────────────────────────────────────────────────────────────────
@@ -166,9 +226,7 @@ if page == "🎯 Predict Salary":
 
     pipeline = get_model()
     if pipeline is None:
-        st.error(
-            "⚠️ Model not found. Please run `python src/train.py` first to train and save the model."
-        )
+        st.error("⚠️ Model could not be loaded or trained. Check that data file exists.")
         st.stop()
 
     # ── Input form ──────────────────────────────────────────────────────────
