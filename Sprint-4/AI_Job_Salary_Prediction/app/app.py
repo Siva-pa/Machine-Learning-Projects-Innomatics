@@ -148,11 +148,11 @@ def get_model():
         logger.warning("Could not load saved model: %s — retraining...", e)
 
     # Retrain from scratch if loading fails (e.g. Python version mismatch)
-    st.toast("⏳ First-time setup: training model, please wait ~1 min...")
+    logger.info("Retraining model from scratch...")
     DATA_PATH = ROOT / "data" / "cleaned_ai_job_dataset.csv"
 
     if not DATA_PATH.exists():
-        st.error(f"Training data not found at {DATA_PATH}")
+        logger.error("Training data not found at %s", DATA_PATH)
         return None
 
     df = pd.read_csv(DATA_PATH)
@@ -186,7 +186,6 @@ def get_model():
     pipeline.fit(X, y)
     logger.info("Model retrained successfully.")
 
-    # Save for next time
     try:
         MODEL_PATH.parent.mkdir(parents=True, exist_ok=True)
         joblib.dump(pipeline, str(MODEL_PATH))
@@ -224,9 +223,12 @@ if page == "🎯 Predict Salary":
         unsafe_allow_html=True,
     )
 
-    pipeline = get_model()
+    # Show spinner OUTSIDE the cached function — fixes CacheReplayClosureError
+    with st.spinner("Loading model… (first run may take ~1 min to train)"):
+        pipeline = get_model()
+
     if pipeline is None:
-        st.error("⚠️ Model could not be loaded or trained. Check that data file exists.")
+        st.error("⚠️ Model could not be loaded or trained. Check that the data file exists.")
         st.stop()
 
     # ── Input form ──────────────────────────────────────────────────────────
