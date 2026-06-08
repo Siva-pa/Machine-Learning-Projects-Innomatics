@@ -1,0 +1,7 @@
+# *.pkl   ← remove this line
+__pycache__/
+*.pyc
+.env
+mlflow.db
+logs/
+mlruns/
