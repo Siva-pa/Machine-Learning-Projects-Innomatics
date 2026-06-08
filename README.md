@@ -77,7 +77,7 @@ Advanced techniques for improving model performance.
 A fully deployed ML web application that predicts annual AI job salaries in USD based on role, experience, location, and company attributes.
 
 #### Live Demo
-> Deployed on [Streamlit Cloud](https://streamlit.io/cloud)
+> Deployed on [Streamlit Cloud](https://aijobsalaryprediction.streamlit.app/)
 
 #### Features
 - 🔮 **Salary Prediction** — Real-time predictions using a trained Gradient Boosting pipeline
