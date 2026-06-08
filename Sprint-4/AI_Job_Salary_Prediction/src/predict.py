@@ -8,7 +8,7 @@ import csv
 import json
 import logging
 import os
-import pickle
+import joblib
 from datetime import datetime
 from pathlib import Path
 
@@ -28,12 +28,10 @@ logger = logging.getLogger(__name__)
 # ── Load model ─────────────────────────────────────────────────────────────────
 def load_model(path: str = None):
     path = path or MODEL_PATH
-    logger.info("Loading model from %s …", path)
-    with open(path, "rb") as f:
-        pipeline = pickle.load(f)
+    logger.info("Loading model from %s ...", path)
+    pipeline = joblib.load(path)
     logger.info("Model loaded successfully.")
     return pipeline
-
 
 # ── Prediction ─────────────────────────────────────────────────────────────────
 def predict(input_data: dict, pipeline=None) -> dict:
