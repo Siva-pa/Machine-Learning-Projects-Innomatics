@@ -13,7 +13,8 @@ from datetime import datetime
 from pathlib import Path
 
 import pandas as pd
-
+import sys
+sys.path.insert(0, str(Path(__file__).resolve().parent))
 # ── Paths ──────────────────────────────────────────────────────────────────────
 ROOT = Path(__file__).resolve().parent.parent
 MODEL_PATH = ROOT / "models" / "model.pkl"
